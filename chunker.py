@@ -21,12 +21,13 @@ If you get stuck for 30 minutes, `fallback_split` is the original. Switch back
 to it, write down what you saw, and move on. That's a real observation about
 your pipeline, not giving up.
 """
-
+import re
 from dataclasses import dataclass
 
 import config
 from ingest import Document
 
+SENTENCE_END = re.compile(r'(?<=[.!?])\s+')
 
 @dataclass
 class Chunk:
@@ -97,7 +98,36 @@ def split_documents(documents: list[Document]) -> list[Chunk]:
       - Would splitting on paragraph breaks keep more thoughts intact than
         splitting on a character count?
     """
-    return fallback_split(documents)
+    chunks: list[Chunk] = []
+
+    for doc in documents:
+        sentences = [s.strip() for s in SENTENCE_END.split(doc.text) if s.strip()]
+
+        buffer = ""
+        index = 0
+
+        for sentence in sentences:
+            if buffer and len(buffer) + 1 + len(sentence) > config.CHUNK_SIZE:
+                chunks.append(Chunk(
+                    text=buffer,
+                    source=doc.source,
+                    index=index,
+                    produced_by="chunker.py::split_documents",
+                ))
+                index += 1
+                buffer = sentence
+            else:
+                buffer = f"{buffer} {sentence}".strip()
+
+        if buffer:
+            chunks.append(Chunk(
+                text=buffer,
+                source=doc.source,
+                index=index,
+                produced_by="chunker.py::split_documents",
+            ))
+
+    return chunks
 
 
 def describe(chunks: list[Chunk]) -> str:
