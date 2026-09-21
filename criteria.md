@@ -55,7 +55,7 @@ in at least 4 of 5 tries.
 
 ---
 
-## 4. Something about your chunks
+## 4. Of the first 10 chunks containing a price, GPA, or deadline, at least 8 state what the number refers to within the same chunk — readable without the neighbouring chunks.
 
 <!-- YOU WRITE THIS ONE.
 
@@ -72,12 +72,18 @@ in at least 4 of 5 tries.
 
 
 **Why this target:**
-
+I chose this target because my chunk size is 400 and overlap in 0, and made sure to only include complete sentences in my chunks. So there could be cases where another sentences is referring to a previous number (price, GPA, deadline)
+Splitting on every "." cut numbers themselves in half — "$12.00" became "$12" and "00 cash," and the same happened to GPA values like 1.7. Packing whole sentences instead fixes that. But with overlap at 0, a sentence that refers back to a number ("that's due by then") can land in the next chunk without it. I expect that to happen occasionally, not often, since most of these documents state a number and what it's for in the same sentence — so 8 of 10, not 10 of 10.
 
 
 ---
 
-## 5. Your choice
+## 5. Multi-topic questions pull from more than one document
+
+For at least 3 of my 5 test questions that ask about two sub-topics of the
+same subject (e.g. a course's exam format AND its weekly workload), the
+retrieved chunks include content from both topic-specific documents, not
+just the general overview file.
 
 <!-- YOU WRITE THIS ONE TOO.
 
@@ -91,7 +97,15 @@ in at least 4 of 5 tries.
 
 **Why this target:**
 
-
+My corpus deliberately splits each course, dorm, and
+dining hall into a general file plus topic files (`course_cs_210.txt` +
+`_exams.txt` + `_workload.txt`; `housing_X.txt` + `_laundry.txt` +
+`_noise.txt`). The general file already summarizes both topics in one or two
+sentences, so top-k retrieval can satisfy a vague question from that one
+document and never touch the specific ones — which would hide a real gap. I
+expect 3 of 5, not 5 of 5, because a broad question can legitimately be
+answered from the general file alone; only questions that ask for two
+specific, non-overlapping details actually require both.
 
 ---
 
