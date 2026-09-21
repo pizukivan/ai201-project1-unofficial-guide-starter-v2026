@@ -40,7 +40,7 @@
      If you changed your mind partway through, say so and say why. That's worth
      more than pretending you got it right first time.
 
-     Milestone 3. -->
+     Milestone 3. --> The longest document on campus_life is 550 so at 800 every document became exactly one chunk. I tried splitting on every "." but that was cutting values like GPA or currency, so I decided to chunk in full sentences up to 400 characters, that way no sentence gets cut and we loose context. 
 
 ## Sample Chunks
 
@@ -96,10 +96,6 @@ Just finished a year in this building. Built 1954, partially renovated 2008. Roo
 
 **Answer:** Pellew Dining Hall is located next to the athletics centre and is described as the furthest hall from anywhere.   (best distance 0.301, cutoff 0.45)
 Source: `dining_pellew_dining_hall.txt` (and also mentioned in `dining_pellew_dining_hall_followup.txt`).
-
-``` 
-
-```
 
 **My relevance cutoff:** 
 
