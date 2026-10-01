@@ -110,7 +110,16 @@ Source: `dining_pellew_dining_hall.txt` (and also mentioned in `dining_pellew_di
 
 | Question | In corpus? | Best distance |
 |---|---|---|
-|  |  |  |
+| What's the exam format for CS 210, and is the workload front-loaded or spread evenly across the semester? | yes | 0.3547 |
+| What's the exam format for MATH 220, and how many hours a week should I expect to spend on it? | yes | 0.3674 |
+| How much does laundry cost in Aldridge Hall, and what's the best time to go to avoid a wait? | yes | 0.2522 |
+| When is the add/drop deadline, and what happens on my transcript if I drop after it? | yes | 0.2255 |
+| How much printing credit do I get per semester, and does it roll over? | yes | 0.3936 |
+| What is the capital of Mongolia? | no | 0.825 |
+| How do I change the oil in a diesel engine? | no | 0.934 |
+| Who won the 1994 World Cup? | no | 0.886 |
+| What is the recommended dosage of ibuprofen for a headache? | no | 0.844 |
+| How do I write a for loop in Rust? | no | 0.891 |
 
 ## How I Used AI
 
@@ -155,41 +164,69 @@ wrote a function that packs whole sentences up to a size limit instead.
      writes it all into results/ for you. Targets come from criteria.md; the
      verdict column is your call.
 
-     Criterion 3 is measured in one deterministic pass rather than three, so
-     the same number goes in all three run columns. That's correct, not lazy.
-
-     Milestone 1. -->
+Criterion 3 is measured in one deterministic pass rather than three, so
+the same number goes in all three run columns. That's correct, not lazy. -->
 
 | Criterion | Target | Run 1 | Run 2 | Run 3 | Verdict |
 |---|---|---|---|---|---|
-| 1. Retrieved chunk contains the answer | 4 of 5 |  |  |  |  |
-| 2. Every answer names a source | 5 of 5 |  |  |  |  |
-| 3. Gate stops out-of-corpus questions | 4 of 5 |  |  |  |  |
-| 4. | | | | | |
-| 5. | | | | | |
+| 1. Retrieved chunk contains the answer | 4 of 5 | 3/5 | 3/5 | 3/5 | MISSED |
+| 2. Every answer names a source | 5 of 5 | 5/5 | 5/5 | 5/5 | MET |
+| 3. Gate stops out-of-corpus questions | 4 of 5 | 5/5 | 5/5 | 5/5 | MET |
+| 4. Chunks state what their number refers to | 8 of 10 | 10/10 | 10/10 | 10/10 | MET |
+| 5. Multi-topic questions pull two docs | 3 of 5 | 3/5 | 3/5 | 3/5 | MET |
 
-<!-- Underneath, paste the REAL output for each criterion from one of your
-     runs — the actual text your system produced, not a description of it.
-     Name the file and function that produced it. -->
+Real output, produced by `run_eval.py::main` (retrieval via `store.py::search`,
+chunks from `chunker.py::split_documents`), from `results/run_2026-09-30_1905_before.md`,
+plus a direct pull of `chunker.py::split_documents` for criterion 4:
+
+**Criterion 1 — the miss.** "What's the exam format for CS 210, and is the workload front-loaded or spread evenly?" — run 1, best distance 0.3547:
+
+```
+CS 210 has two midterms and a final, all drawn from lecture material
+rather than the textbook (`course_cs_210_exams.txt` and
+`course_cs_210.txt`). The workload is front-loaded, meaning the first
+month is heavier than the rest (`course_cs_210_workload.txt`).
+```
+
+`course_cs_210_exams.txt` — one of the retrieved sources — reads: "Midterms are curved, the final is not." The chunk was retrieved; the answer just never says "curved."
+
+**Criterion 2.** "How much does laundry cost in Aldridge Hall, and what's the best time to go to avoid a wait?" — run 1, best distance 0.2522:
+
+```
+In Aldridge Hall, laundry costs $1.75 for a wash and $1.50 for a dry. The
+best time to go is Tuesday or Wednesday morning to avoid a wait.
+
+Sources: `housing_aldridge_hall_laundry.txt` and `housing_aldridge_hall.txt`
+```
+
+**Criterion 3.** From `run_eval.py::check_out_of_scope`, cutoff 0.6:
+
+```
+What is the capital of Mongolia? — best distance 0.825 — refused
+```
+
+**Criterion 4.** First chunk containing a price/GPA/deadline, via `chunker.py::split_documents`:
+
+```
+admin_add_drop_deadline.txt#0
+On the add/drop deadline
+
+You can add a course through the end of the second week. Dropping is a
+longer window — through the end of week six — but a drop after week two
+shows as a W on your transcript.
+```
+
+**Criterion 5.** "What's the exam format for CS 210..." — sources retrieved: `course_cs_210.txt`, `course_cs_210_exams.txt`, `course_cs_210_workload.txt` — all three CS210 files, general and both topic-specific ones, in a single retrieval.
 
 ## Verdicts
 
-<!-- MET or MISSED for each of the five, against the target you wrote last
-     unit — not a new one. Plus a sentence on how you decided. That sentence
-     matters most where it was close.
-
-     If your target said 4 of 5 and your runs came out 4, 3, 4, that's a MISS.
-     The target has to hold, not show up occasionally.
-
-     Milestone 2. -->
-
 | # | Criterion | Verdict | How I decided |
 |---|---|---|---|
-| 1 |  |  |  |
-| 2 |  |  |  |
-| 3 |  |  |  |
-| 4 |  |  |  |
-| 5 |  |  |  |
+| 1 | Retrieved chunks contain the answer (4 of 5) | MISSED | All three runs landed at 3/5, never reaching 4 — consistent, not a fluke. Both misses were the same every run: the retrieved chunk for CS210 and MATH220 each literally contain the word "curved," but the generated answer dropped it both times when asked a two-part question, so the final answer never stated everything the chunk supported. |
+| 2 | Every answer names a source (5 of 5) | MET | Checked all 15 answers (5 questions × 3 runs) by hand — every one names at least one source file. |
+| 3 | Gate stops out-of-corpus questions (4 of 5) | MET | Single deterministic pass — 5 of 5 out-of-scope questions refused, distances 0.825–0.934, well past the 0.6 cutoff. |
+| 4 | Chunks state what their number refers to (8 of 10) | MET | Pulled the first 10 chunks containing a price, GPA, or deadline, in document order. All 10 name what the number refers to — each is a complete, unsplit document. Looking past the first 10, the gap I wrote this criterion against does show up: `housing_innisfree_hall.txt#1` and `housing_old_brewhouse.txt#1` both state a laundry price without naming which hall, because the building name was in the chunk before it. The target held for the sample it specifies, but the risk is real elsewhere in the corpus. |
+| 5 | Multi-topic questions pull two docs (3 of 5) | MET | 3 of my 5 questions genuinely ask about two sub-topics of one subject (CS210, MATH220, Aldridge laundry); all 3 pulled chunks from both the general file and the topic-specific file. Deterministic, so it doesn't move between runs. |
 
 ## Diagnoses
 

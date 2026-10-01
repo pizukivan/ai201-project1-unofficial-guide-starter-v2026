@@ -17,10 +17,10 @@ pipeline earns credit; *"80% seemed reasonable"* does not.
 
 ---
 
-## 1. Retrieved chunks contain the answer
+## 1. Retrieved chunks contain the answer MET
 
 For at least 4 of my 5 test questions, the retrieved chunks include one that
-contains the answer.
+contains the answer. 
 
 **Why this target:**
 <!-- e.g. "One of my questions is about a topic only two documents mention, so
