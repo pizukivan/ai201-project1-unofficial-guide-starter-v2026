@@ -144,6 +144,17 @@ price and GPA values to confirm it held.
 doesn't cut sentences in half. It measured my documents, found that at the
 starter's default of 800 characters nothing in my corpus ever splits, and
 wrote a function that packs whole sentences up to a size limit instead.
+
+**3.** After my fix to the grounding prompt showed zero change in the
+after-run, I asked Claude to help me figure out why instead of just
+reporting "it didn't work." Given the before and after answers side by
+side, it pointed out that my fix had targeted brevity-driven compression,
+but the after-run disproved that theory — an instruction not to compress
+had no measurable effect. Its alternative explanation was that the model
+likely doesn't categorize "curved" as part of "exam format" at all. I
+don't have an independent way to confirm that beyond what's already in
+the two run logs, so I'm reporting it as the best explanation the
+evidence supports, not a confirmed root cause.
 <!-- ── Stretch features ─────────────────────────────────────────────────────
      Doing one? Say so here BEFORE you start. A feature this README never
      claims earns nothing.
@@ -230,68 +241,135 @@ shows as a W on your transcript.
 
 ## Diagnoses
 
-<!-- For each miss: which stage caused it, and how. The stage alone isn't
-     enough — you need the mechanism.
+Only criterion 1 was missed (3/5, every run). The other four were MET, so
+this is one diagnosis, not five — but I also look below at whether some of
+those four were too easy to begin with.
 
-     Not a diagnosis: "Question 3 didn't work."
-     A diagnosis:     "Question 3 asks about laundry costs. The answer is in
-                       one sentence that got split across two chunks, so
-                       neither chunk on its own contains it."
+**Criterion 1 — generation stage, not retrieval.** Both misses are the same
+subject: CS210 and MATH220 asking for exam format *and* workload in one
+question. In both cases `store.py::search` retrieved the right chunk every
+single run — `course_cs_210_exams.txt` and `course_math_220.txt` are in the
+source list all three times for each question, and both chunks literally
+contain the word "curved" (verified by reading the source files directly).
+The chunk was never missing. What happened is in
+`generate.py::answer_from_chunks`: the source sentence is "Two midterms and
+a final, all drawn from lecture material... Midterms are curved, the final
+is not." — the exam-count fact comes first, "curved" is a trailing clause
+after it. In both questions, across all 6 runs (2 questions × 3 runs), the
+model kept the first clause and dropped the second. The three questions
+that *did* pass (laundry, add/drop, printing) don't have this shape — their
+two needed facts are each a full, separate sentence, with nothing
+competing for attention inside one sentence. So the real pattern isn't
+"two-part questions are unreliable," it's narrower: a detail that's a
+subordinate clause riding on a more prominent fact in the same sentence
+gets summarized away when the question also asks for something else.
+Retrieval and chunking did their job; the gap is in how the model
+compresses the context into a sentence or two, per the "be brief" line in
+`GROUNDING_INSTRUCTION`.
 
-     The five stages: loading → chunking → embedding → retrieval → generation.
-
-     Look for a pattern. If three misses all ask about numbers, that's one
-     problem, not three.
-
-     Missed nothing? Say so, then say honestly whether your targets were set
-     low, and which one you'd tighten and to what.
-
-     Milestone 3. -->
+**Were any of the four MET criteria too easy?** Criterion 3 is the one I'd
+point at. The gap between my in-corpus distances (0.2255–0.3936) and my
+out-of-scope distances (0.825–0.934) is enormous — nothing in either group
+comes anywhere near the 0.45 cutoff from either side. That means "4 of 5"
+was never really at risk once the cutoff was set in that gap; this corpus
+doesn't produce an ambiguous out-of-scope question the way a messier one
+might. If I were tightening one target, it'd be this one — to 5 of 5, since
+my actual data never came close to missing even one. Criterion 2, by
+contrast, is genuinely being tested: source-naming is a model instruction
+(`GROUNDING_INSTRUCTION`), not something the code forces, so 15/15 across
+every run and question is a real result, not a guaranteed one.
 
 ## The Improvement
 
-**What I changed:**
+**What I changed:** Added one rule to `GROUNDING_INSTRUCTION` in
+`generate.py`: "If the question asks about more than one thing, answer
+every part of it. Do not drop a detail just because it's a secondary
+clause in the source sentence rather than the main one." Also softened
+"Be brief" to not override completeness.
 
-**Why I picked it:**
-
-<!-- Connect it to a specific diagnosis above in one sentence. If you can't,
-     you picked a fix because it sounded impressive. -->
+**Why I picked it:** My diagnosis traced the criterion 1 miss to the
+generation stage, not retrieval — the chunk containing "curved" was
+retrieved every run for both failing questions, but the model's answer
+never stated it. The fix targets that exact stage with a direct
+instruction, rather than touching chunking or retrieval, which weren't
+the problem.
 
 ### Run Log — After
 
-<!-- Same format, same five criteria, three runs each.
-     `python run_eval.py --label after` -->
-
 | Criterion | Target | Run 1 | Run 2 | Run 3 | Verdict |
 |---|---|---|---|---|---|
-| 1. Retrieved chunk contains the answer | 4 of 5 |  |  |  |  |
-| 2. Every answer names a source | 5 of 5 |  |  |  |  |
-| 3. Gate stops out-of-corpus questions | 4 of 5 |  |  |  |  |
-| 4. | | | | | |
-| 5. | | | | | |
+| 1. Retrieved chunk contains the answer | 4 of 5 | 3/5 | 3/5 | 3/5 | MISSED |
+| 2. Every answer names a source | 5 of 5 | 5/5 | 5/5 | 5/5 | MET |
+| 3. Gate stops out-of-corpus questions | 4 of 5 | 5/5 | 5/5 | 5/5 | MET |
+| 4. Chunks state what their number refers to | 8 of 10 | 10/10 | 10/10 | 10/10 | MET |
+| 5. Multi-topic questions pull two docs | 3 of 5 | 3/5 | 3/5 | 3/5 | MET |
 
-**Did it help?**
+Produced by `run_eval.py::main`, `results/run_2026-09-30_1910_after.md`.
+Real output, CS210 run 1, after the prompt change:
 
-<!-- Say plainly whether it did, and how you know. If it made things worse,
-     say that — a change that backfired, honestly reported, earns full credit
-     and is more interesting than one that worked. What matters is that you can
-     tell.
+```
+For CS 210, the assessment consists of two midterms and a final, all
+drawn from lecture material rather than the textbook (sources:
+`course_cs_210_exams.txt` and `course_cs_210.txt`). The workload is
+front-loaded; the first month is heavier than the rest (source:
+`course_cs_210_workload.txt`).
+```
 
-     Milestone 4. -->
+Still no "curved" — same gap as before the change, word for word in spirit.
+
+**Did it help?** No. Before and after are identical: 3/5, 3/5, 3/5, same
+two questions failing the same way, every run. The instruction change had
+no measurable effect, which tells me my diagnosis had the right stage but
+the wrong mechanism. I assumed the model was dropping "curved" under
+space pressure from "be brief," so I told it not to do that — but telling
+a model not to compress didn't change anything, which suggests it was
+never compressing. More likely: the model doesn't categorize "curved" as
+part of "exam *format*" at all — it reads "format" as midterms/final/
+structure and treats grading curve as a different kind of fact, outside
+what the question is asking about. That's not an instruction-following
+problem, which is why an instruction didn't fix it — it's about which
+facts the model considers responsive to the word "format" in the first
+place, and that needs a differently-shaped fix than the one I tried.
 
 ## What's Still Broken
 
-<!-- For each criterion still missed after your fix: what you'd do about it,
-     and why you stopped where you did.
+Criterion 1 is still missed after my one change — 3/5, 3/5, 3/5, identical
+to before. Both failures are the same two questions (CS210, MATH220), and
+the model still never states "curved," even though a retrieved chunk
+contains it every single run.
 
-     "I ran out of time" is fine if it's true. Pretending nothing is left is
-     not.
+What I'd do next: my fix assumed the model was dropping the detail under
+space pressure from "be brief," and the after-run disproved that —
+telling it not to compress had zero effect. The next thing worth trying
+is a bigger change than a prompt line: a two-step generation, where the
+model first lists every fact in the retrieved chunks relevant to the
+question, then writes the answer from that list. That would force
+"curved" to surface as a candidate fact instead of never being considered
+at all. That's a real architecture change, not a one-line fix, and it
+needs its own full test cycle to know if it works or just moves the
+failure somewhere else.
 
-     Milestone 5. -->
+Why I stopped where I did: time. Every iteration here costs a full
+re-run — 15 real model calls minimum per cycle — and diagnosing *why* the
+first fix failed, instead of assuming it worked, used the rest of my
+budget for this unit. I'd rather report one fix honestly diagnosed as not
+working than claim a second fix I didn't have time to test properly.
 
 ## What I'd Do Differently
 
-<!-- Knowing what you know now — which of your five criteria would you write
-     differently, and why?
+The criterion I'd rewrite is criterion 1. As written, "the retrieved
+chunks include one that contains the answer," and the thing my own
+`scorer.py` actually checks (does the *final answer* contain the expected
+phrase), turned out to be two different measurements — retrieval and
+generation — and I only discovered that by manually reading the source
+documents after the fact. Next unit I'd split it into two criteria from
+the start: one strictly about retrieval (is the correct chunk in top-k,
+checked against chunk text) and one about generation completeness (does
+the final answer state every fact the retrieved chunks support). That
+would have caught this miss accurately the first time instead of
+requiring me to re-derive it by hand mid-unit.
 
-     Milestone 5. -->
+Second, I'd tighten criterion 3. The gap between my in-corpus distances
+(0.2255–0.3936) and out-of-scope distances (0.825–0.934) is enormous, so
+"4 of 5" was never really being tested on this corpus. I'd set it to 5 of
+5 next time, since nothing in my actual data came anywhere near the edge.

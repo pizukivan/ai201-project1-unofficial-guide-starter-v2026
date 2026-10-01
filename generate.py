@@ -279,7 +279,8 @@ Rules:
 - Use only the information in the documents below. Do not use anything you know from elsewhere.
 - If the documents don't cover the question, say you don't have enough information. Do not guess.
 - Name the document your answer came from, using the filename given in each excerpt.
-- Be brief. Two or three sentences is usually enough."""
+- If the question asks about more than one thing, answer every part of it. Do not drop a detail just because it's a secondary clause in the source sentence rather than the main one.
+- Be brief. Two or three sentences is usually enough, but never at the cost of leaving out something the question asked for."""
 
 
 def build_prompt(question: str, results) -> str:
